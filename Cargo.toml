@@ -1,0 +1,9 @@
+[package]
+name = "canary"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serialport = "4.3.0"
+clap = { version = "4.1.9", features = ["derive"] }
+ctrlc = "3.4.4"
