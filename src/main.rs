@@ -1,14 +1,15 @@
 #![deny(warnings)]
 
+use clap::Parser;
+use rand::Rng;
 use std::{
     fs,
+    io::Read,
     process::{Child, Command, Stdio},
     sync::{atomic::AtomicBool, Arc},
     thread::sleep,
-    time::Duration,
+    time::{Duration, Instant},
 };
-
-use clap::Parser;
 
 #[derive(Parser)]
 struct Cli {
@@ -40,6 +41,7 @@ fn main() -> Result<(), String> {
     let debug = cli.debug;
     let exit = Arc::new(AtomicBool::new(false));
     let exit2 = exit.clone();
+    let mut rng = rand::thread_rng();
 
     if debug {
         println!("Port {} selected", port_out);
@@ -66,16 +68,33 @@ fn main() -> Result<(), String> {
             )
         })?;
     let mut output = [0u8];
+    let mut now = Instant::now();
 
     'main: loop {
         if exit.load(std::sync::atomic::Ordering::SeqCst) {
             break 'main;
         }
 
-        while s.read(&mut output).is_err() {
-            if exit.load(std::sync::atomic::Ordering::SeqCst) {
-                break 'main;
+        if now.elapsed().as_millis() > 2_000 {
+            now = Instant::now();
+
+            let rand_color = format!("\x1b[3{}m", rng.gen_range(1..8));
+            let amount = rng.gen_range(1..=25);
+            let rand_bytes_with_text = vec![
+                rand_color.as_bytes().to_vec(),
+                (0..amount).map(|_| rng.gen()).collect::<Vec<_>>(),
+                b"\x1b[0m".to_vec(),
+            ]
+            .concat();
+            s.write_all(&rand_bytes_with_text)
+                .map_err(|err| format!("Cannot write bytes on serial: {}", err))?;
+            if debug {
+                println!("Sending {} bytes", rand_bytes_with_text.len());
             }
+        }
+
+        if s.read(&mut output).is_err() {
+            continue;
         }
 
         if debug {
