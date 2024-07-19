@@ -19,6 +19,8 @@ struct Cli {
     debug: bool,
     #[clap(short, long)]
     socat_port: Option<String>,
+    #[clap(short, long, action)]
+    gen_msg: bool,
 }
 
 fn run_socat(port_in: &str, port_out: &str) -> Result<Child, String> {
@@ -75,14 +77,22 @@ fn main() -> Result<(), String> {
             break 'main;
         }
 
-        if now.elapsed().as_millis() > 2_000 {
+        if now.elapsed().as_millis() > 2_000 && cli.gen_msg {
             now = Instant::now();
 
             let rand_color = format!("\x1b[3{}m", rng.gen_range(1..8));
-            let amount = rng.gen_range(1..=25);
+            let amount = rng.gen_range(15..=50);
             let rand_bytes_with_text = vec![
                 rand_color.as_bytes().to_vec(),
-                (0..amount).map(|_| rng.gen()).collect::<Vec<_>>(),
+                (0..amount)
+                    .map(|i| {
+                        if i % 4 == 0 {
+                            rng.gen()
+                        } else {
+                            rng.gen_range(0x20..0x7F)
+                        }
+                    })
+                    .collect::<Vec<_>>(),
                 b"\x1b[0m".to_vec(),
             ]
             .concat();
